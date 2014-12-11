@@ -224,6 +224,8 @@ void init(){
 
 volatile WORD bytes;
 void main(){
+  //int a = 0x1234;
+  //printf("VAL %d", a);
   bytes = 0;
   got_sud=FALSE;
   dosuspend = FALSE;
@@ -262,23 +264,23 @@ void main(){
     SYNCDELAY4;
     if (!(EP2FIFOFLGS & 2)){
       SYNCDELAY4;
-      printf("%d %d\n", EP2BCH, EP2BCL);
+      printf("EP2FIFOBC %d %d\n", EP2FIFOBCH, EP2FIFOBCL);
       SYNCDELAY4;
-      SET_TRANSFER_COUNT(26,0,0,0);
+      SET_TRANSFER_COUNT(EP2FIFOBCL,EP2FIFOBCH,0,0);
       SYNCDELAY4;
       GPIFTRIG = 0;
-      SYNCDELAY4;
-      printf("FIFO GOT DATA %d %d %d %d\n", 
-	     GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
+      //SYNCDELAY4;
+      //printf("FIFO GOT DATA %d %d %d %d...", 
+      //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       SYNCDELAY4;
       while(!(GPIFTRIG & 0x80)){
 	//printf("FIFO GOT DATA %d %d %d %d\n", 
 	//       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       }
       SYNCDELAY4;
-      printf("FIFO GOT DATA %d %d %d %d\n", 
-	     GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
-      SYNCDELAY4;
+      //printf("FIFO GOT DATA %d %d %d %d\n", 
+      //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
+      //SYNCDELAY4;
       printf("DONE\n");
       SYNCDELAY4;
     }
