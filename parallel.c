@@ -13,6 +13,24 @@
 #include "wave_6800.h"
 
 #define GLEAR_GPIF() CLEAR_GPIF(); //Fix till pull request for fx2lib is taken
+#define SET_TRANSFER_COUNT(bak0, bak1, bak2, bak3)	\
+  SYNCDELAY4;						\
+  GPIFTCB0 = bak0;					\
+  SYNCDELAY4;						\
+  GPIFTCB1 = bak1;					\
+  SYNCDELAY4;						\
+  GPIFTCB2 = bak2;					\
+  SYNCDELAY4;						\
+  GPIFTCB3 = bak3;					\
+  SYNCDELAY4;
+#define WAIT_EP2FIFO_NOT_EMPTY() \
+  SYNCDELAY4;		         \
+  while (EP2FIFOFLGS & 2){}      \
+  SYNCDELAY4;
+#define WAIT_GPIF_DONE()      \
+  while(!(GPIFTRIG & 0x80)){} \
+  SYNCDELAY;
+
 #define SYNCDELAY SYNCDELAY4;
 #define PARALLEL_COMMAND 0xB5
 #define TEST0 0
@@ -136,7 +154,7 @@ void init(){
   ENABLE_USBRESET();
   //ENABLE_SOF();
 
-  //GpifInit();
+  GpifInit();
   SYNCDELAY;
 
   //Can't seem to get the GPIF editor to set these correctly. Overriding.
@@ -144,10 +162,10 @@ void init(){
   OEA = 0x03;
   IOA = 0;
   //Not important
-  PORTCCFG = 0; //Wrong default. Overriding. C is the address.
-  OEC = 0x00;
-  PORTECFG = 0;
-  OEE = 0xD8; //For T*OUT
+  //PORTCCFG = 0; //Wrong default. Overriding. C is the address.
+  //OEC = 0x00;
+  //PORTECFG = 0;
+  //OEE = 0xD8; //For T*OUT
 
   //BIT 6 0 = OUT, 1 = IN. This is same direction as USB. IN means to PC
   EP2CFG &= 0xA2; //EP2 is READ FROM USB. 512byte OUT BULK set DOUBLE BUFF
@@ -177,19 +195,17 @@ void init(){
   SYNCDELAY;
 
 
+  EP2FIFOCFG = 0x10;//0x15; //AUTO OUT, WORDWIDE=0
+  EP6FIFOCFG = 0x08;//AUTO IN, WORDWIDE=0
+  SYNCDELAY;
+
+
   // arm ep2
   EP2BCL = 0x80; // write once
   SYNCDELAY;
   EP2BCL = 0x80; // do it again
-
-
-  //EP2FIFOCFG = 0x10;//0x15; //AUTO OUT, WORDWIDE=0
-  //If the revctl bits were set like Cypress suggests, we should
-  //'prime the pump' here. Once per out buffer (4 times)
-  //SYNCDELAY; OUTPKTEND = 0x82;
-
-  //EP6FIFOCFG = 0x08;//AUTO IN, WORDWIDE=0
-  SYNCDELAY;
+  OUTPKTEND = 0x82; //?? Needed??
+  OUTPKTEND = 0x82;
 
 
   //Auto-commit 512-byte packets
@@ -213,12 +229,16 @@ void main(){
   dosuspend = FALSE;
 
   init();
+  printf("\n\n");
 
+  SYNCDELAY4;
+  printf("%d %d\n", EP2BCH, EP2BCL);
   while(TRUE) {
     if (dosuspend){
+      printf("SUSPENDING\n");
       dosuspend = FALSE;
 
-      //TURN EVERYTHING OFF
+      /*//TURN EVERYTHING OFF
       OEA = 0;
       OEE = 0;
 
@@ -231,7 +251,7 @@ void main(){
 
       //TURN EVERYTHING BACK ON
       OEA = 0x03;
-      OEE = 0xD8; //For T*OUT
+      OEE = 0xD8; //For T*OUT*/
     }
     if ( got_sud ) {
       printf ( "Handle setupdata PARALLEL\n" );
@@ -239,9 +259,35 @@ void main(){
       handle_setupdata();
       }
 
-    if(!(EP2468STAT & 0x01) && !(EP2468STAT & 0x20)){
+    SYNCDELAY4;
+    if (!(EP2FIFOFLGS & 2)){
+      SYNCDELAY4;
+      printf("%d %d\n", EP2BCH, EP2BCL);
+      SYNCDELAY4;
+      SET_TRANSFER_COUNT(26,0,0,0);
+      SYNCDELAY4;
+      GPIFTRIG = 0;
+      SYNCDELAY4;
+      printf("FIFO GOT DATA %d %d %d %d\n", 
+	     GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
+      SYNCDELAY4;
+      while(!(GPIFTRIG & 0x80)){
+	//printf("FIFO GOT DATA %d %d %d %d\n", 
+	//       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
+      }
+      SYNCDELAY4;
+      printf("FIFO GOT DATA %d %d %d %d\n", 
+	     GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
+      SYNCDELAY4;
+      printf("DONE\n");
+      SYNCDELAY4;
+    }
+    
+    
+    /*if(!(EP2468STAT & 0x01) && !(EP2468STAT & 0x20)){
       WORD i;
       d4off();
+
       printf ( "Sending data to ep6 in\n");
       bytes = MAKEWORD(EP2BCH, EP2BCL);
 
@@ -251,7 +297,7 @@ void main(){
       SYNCDELAY;
       EP6BCL = LSB(bytes);
       EP2BCL = 0x80;
-    }
+      }*/
 
   }
 }
