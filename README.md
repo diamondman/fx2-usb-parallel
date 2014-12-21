@@ -9,5 +9,9 @@ The device id of chips flashed with this firmwarae are a default dev kit value, 
 
 The firmware is unaware of what is attached to it, and it is up to whatever sends the firmware the uSB commands to write data to the parallel lines to make the data mean something to the target device.
 
+Building requires SDCC.
+After pulling, be sure to initialize submodules to download the required fx2lib.
+just run make to build.
+
 Loading is easy and can be done with fxload or 
   sudo cycfx2prog prg:build/parallel.ihx run
