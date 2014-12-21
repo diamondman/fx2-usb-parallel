@@ -33,25 +33,70 @@
 
 #define SYNCDELAY SYNCDELAY4;
 #define PARALLEL_COMMAND 0xB5
-#define TEST0 0
-#define TEST1 1
-
+#define SET_LIGHT 0
+#define LIGHT_OFF 0
+#define LIGHT_ON 1
+#define SET_ADDRESS_MODE 1
+#define ADDRESS_AUTO 2
+#define ADDRESS_ONLY_DATA 1
+#define ADDRESS_ONLY_CMD 0
+#define RESET
 volatile __bit dosuspend;volatile __bit got_sud;
 
 BOOL handle_parallelcommand(){
   switch (SETUPDAT[2]) {
-  case TEST0:
+  case SET_LIGHT:
     {
-      d2off();
-      break;
+      switch (SETUPDAT[4]) {
+      case LIGHT_OFF:
+	{
+	  d2off();
+	  return TRUE;
+	}
+      case LIGHT_ON:
+	{
+	  d2on();
+	  return TRUE;
+	}
+      default:
+	return FALSE;
+      }
     }
-  case TEST1:
+  case SET_ADDRESS_MODE:
     {
-      d2on();
-      break;
+      printf("ADDRESS MODE: ");
+      switch (SETUPDAT[4]) {
+      case ADDRESS_AUTO:
+	{
+	  printf("AUTO\n");
+	  PORTCCFG = 0xFF;    // [7:0] as alt. func. GPIFADR[7:0]
+	  OEC = 0xFF;         // and as outputs
+	  return TRUE;
+	}
+      case ADDRESS_ONLY_CMD:
+	{
+	  printf("CMD ONLY\n");
+	  PORTCCFG = 0x00;  // [7:0] as port I/O
+	  OEC = 0xFF;       // and as inputs
+	  IOC = 0;
+	  return TRUE;
+	}
+      case ADDRESS_ONLY_DATA:
+	{
+	  printf("DATA ONLY\n");
+	  PORTCCFG = 0x00;  // [7:0] as port I/O
+	  OEC = 0xFF;       // and as inputs
+	  IOC = 0xFF;
+	  return TRUE;
+	}
+      default:
+	printf("UNKNOWN\n");
+	return FALSE;
+      }
     }
+  default:
+    return FALSE;
   }
-  return TRUE;
 }
 
 BOOL handle_vendorcommand(uint8_t cmd) {
@@ -256,7 +301,7 @@ void main(){
       OEE = 0xD8; //For T*OUT*/
     }
     if ( got_sud ) {
-      printf ( "Handle setupdata PARALLEL\n" );
+      printf ( "CTRLPACKET\n" );
       got_sud = FALSE;
       handle_setupdata();
       }
@@ -264,7 +309,7 @@ void main(){
     SYNCDELAY4;
     if (!(EP2FIFOFLGS & 2)){
       SYNCDELAY4;
-      printf("EP2FIFOBC %d %d\n", EP2FIFOBCH, EP2FIFOBCL);
+      //printf("EP2FIFOBC %d %d\n", EP2FIFOBCH, EP2FIFOBCL);
       SYNCDELAY4;
       SET_TRANSFER_COUNT(EP2FIFOBCL,EP2FIFOBCH,0,0);
       SYNCDELAY4;
@@ -281,7 +326,7 @@ void main(){
       //printf("FIFO GOT DATA %d %d %d %d\n", 
       //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       //SYNCDELAY4;
-      printf("DONE\n");
+      //printf("DONE\n");
       SYNCDELAY4;
     }
     
