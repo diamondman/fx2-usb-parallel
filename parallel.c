@@ -13,18 +13,18 @@
 #include "wave_6800.h"
 
 #define GLEAR_GPIF() CLEAR_GPIF(); //Fix till pull request for fx2lib is taken
-#define SET_TRANSFER_COUNT(bak0, bak1, bak2, bak3)	\
-  SYNCDELAY4;						\
-  GPIFTCB0 = bak0;					\
-  SYNCDELAY4;						\
-  GPIFTCB1 = bak1;					\
-  SYNCDELAY4;						\
-  GPIFTCB2 = bak2;					\
-  SYNCDELAY4;						\
-  GPIFTCB3 = bak3;					\
+#define SET_TRANSFER_COUNT(bak0, bak1, bak2, bak3)    \
+  SYNCDELAY4;                        \
+  GPIFTCB0 = bak0;                    \
+  SYNCDELAY4;                        \
+  GPIFTCB1 = bak1;                    \
+  SYNCDELAY4;                        \
+  GPIFTCB2 = bak2;                    \
+  SYNCDELAY4;                        \
+  GPIFTCB3 = bak3;                    \
   SYNCDELAY4;
 #define WAIT_EP2FIFO_NOT_EMPTY() \
-  SYNCDELAY4;		         \
+  SYNCDELAY4;                 \
   while (EP2FIFOFLGS & 2){}      \
   SYNCDELAY4;
 #define WAIT_GPIF_DONE()      \
@@ -33,15 +33,23 @@
 
 #define SYNCDELAY SYNCDELAY4;
 #define PARALLEL_COMMAND 0xB5
+
 #define SET_LIGHT 0
 #define LIGHT_OFF 0
 #define LIGHT_ON 1
+
 #define SET_ADDRESS_MODE 1
 #define ADDRESS_AUTO 2
 #define ADDRESS_ONLY_DATA 1
 #define ADDRESS_ONLY_CMD 0
-#define RESET
-volatile __bit dosuspend;volatile __bit got_sud;
+
+#define WRITE_GPIO 2
+#define SET 0
+#define AND 1
+#define OR 2
+volatile __bit dosuspend;
+volatile __bit got_sud;
+volatile __bit autodata_mode;
 
 BOOL handle_parallelcommand(){
   switch (SETUPDAT[2]) {
@@ -49,9 +57,9 @@ BOOL handle_parallelcommand(){
     {
       switch (SETUPDAT[4]) {
       case LIGHT_OFF:
-	{
-	  d2off();
-	  return TRUE;
+        {
+          d2off();
+          return TRUE;
 	}
       case LIGHT_ON:
 	{
@@ -71,6 +79,8 @@ BOOL handle_parallelcommand(){
 	  printf("AUTO\n");
 	  PORTCCFG = 0xFF;    // [7:0] as alt. func. GPIFADR[7:0]
 	  OEC = 0xFF;         // and as outputs
+	  IOC = 0;
+	  autodata_mode = TRUE;
 	  return TRUE;
 	}
       case ADDRESS_ONLY_CMD:
@@ -79,6 +89,7 @@ BOOL handle_parallelcommand(){
 	  PORTCCFG = 0x00;  // [7:0] as port I/O
 	  OEC = 0xFF;       // and as inputs
 	  IOC = 0;
+	  autodata_mode = FALSE;
 	  return TRUE;
 	}
       case ADDRESS_ONLY_DATA:
@@ -87,10 +98,37 @@ BOOL handle_parallelcommand(){
 	  PORTCCFG = 0x00;  // [7:0] as port I/O
 	  OEC = 0xFF;       // and as inputs
 	  IOC = 0xFF;
+	  autodata_mode = FALSE;
 	  return TRUE;
 	}
       default:
 	printf("UNKNOWN\n");
+	return FALSE;
+      }
+    }
+  case WRITE_GPIO:
+    {
+      uint8_t val = SETUPDAT[4];
+      switch (SETUPDAT[5]) {
+      case SET:
+	{
+	  IOA = val;
+	  printf("SET IOA = %d, %d", IOA, val);
+	  return TRUE;
+	}
+      case AND:
+	{
+	  IOA &= val;
+	  printf("SET IOA &= %d, %d", IOA, val);
+	  return TRUE;
+	}
+      case OR:
+	{
+	  IOA |= val;
+	  printf("SET IOA |= %d, %d", IOA, val);
+	  return TRUE;
+	}
+      default:
 	return FALSE;
       }
     }
@@ -204,7 +242,7 @@ void init(){
 
   //Can't seem to get the GPIF editor to set these correctly. Overriding.
   PORTACFG = 0;
-  OEA = 0x03;
+  OEA = 0xff;
   IOA = 0;
   //Not important
   //PORTCCFG = 0; //Wrong default. Overriding. C is the address.
@@ -274,6 +312,7 @@ void main(){
   bytes = 0;
   got_sud=FALSE;
   dosuspend = FALSE;
+  autodata_mode = TRUE;
 
   init();
   printf("\n\n");
@@ -297,7 +336,7 @@ void main(){
       SYNCDELAY;
 
       //TURN EVERYTHING BACK ON
-      OEA = 0x03;
+      OEA = 0xFF;
       OEE = 0xD8; //For T*OUT*/
     }
     if ( got_sud ) {
@@ -308,11 +347,12 @@ void main(){
 
     SYNCDELAY4;
     if (!(EP2FIFOFLGS & 2)){
-      SYNCDELAY4;
+      //SYNCDELAY4;
       //printf("EP2FIFOBC %d %d\n", EP2FIFOBCH, EP2FIFOBCL);
       SYNCDELAY4;
       SET_TRANSFER_COUNT(EP2FIFOBCL,EP2FIFOBCH,0,0);
       SYNCDELAY4;
+      IOC = 0; //Make sure address starts at 0
       GPIFTRIG = 0;
       //SYNCDELAY4;
       //printf("FIFO GOT DATA %d %d %d %d...", 
@@ -322,7 +362,7 @@ void main(){
 	//printf("FIFO GOT DATA %d %d %d %d\n", 
 	//       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       }
-      SYNCDELAY4;
+      //SYNCDELAY4;
       //printf("FIFO GOT DATA %d %d %d %d\n", 
       //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       //SYNCDELAY4;
