@@ -318,7 +318,7 @@ void main(){
   printf("\n\n");
 
   SYNCDELAY4;
-  printf("%d %d\n", EP2BCH, EP2BCL);
+  //printf("%d %d\n", EP2BCH, EP2BCL);
   while(TRUE) {
     if (dosuspend){
       printf("SUSPENDING\n");
@@ -348,15 +348,15 @@ void main(){
     SYNCDELAY4;
     if (!(EP2FIFOFLGS & 2)){
       //SYNCDELAY4;
-      //printf("EP2FIFOBC %d %d\n", EP2FIFOBCH, EP2FIFOBCL);
+      printf("EP2FIFOBC %d %d\n", EP2FIFOBCH, EP2FIFOBCL);
       SYNCDELAY4;
       SET_TRANSFER_COUNT(EP2FIFOBCL,EP2FIFOBCH,0,0);
       SYNCDELAY4;
       IOC = 0; //Make sure address starts at 0
       GPIFTRIG = 0;
-      //SYNCDELAY4;
-      //printf("FIFO GOT DATA %d %d %d %d...", 
-      //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
+      SYNCDELAY4;
+      printf("FIFO GOT DATA %d %d %d %d...", 
+             GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       SYNCDELAY4;
       while(!(GPIFTRIG & 0x80)){
 	//printf("FIFO GOT DATA %d %d %d %d\n", 
