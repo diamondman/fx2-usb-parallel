@@ -39,7 +39,7 @@ class USBParallelController(object):
         self.parallel_set_address_mode(self.MODE_AUTO)
             
         val = bytes([cmd, data])
-        logging.info("CMD+DATA", binascii.hexlify(val), len(val))
+        logging.info("%s %s %s"%("CMD+DATA", binascii.hexlify(val), len(val)))
         self.dev.bulkWrite(2,val)
         
         #Keeps the bulk messages from blending together
@@ -50,13 +50,14 @@ class USBParallelController(object):
     
     def parallel_extra_data(self, *args):
         self.parallel_set_address_mode(self.MODE_DATA)
+        #logging.info("%s %s"%("DATA", len(args))) #binascii.hexlify(bytes(args)), 
         self.dev.bulkWrite(2,bytes(args))
     
     def parallel_cmd_only(self, cmd):
         self.parallel_set_address_mode(self.MODE_CMD)
     
         val = bytes([cmd])
-        logging.info("CMD ONLY", binascii.hexlify(val), len(val))
+        logging.info("%s %s %s"%("CMD", binascii.hexlify(val), len(val)))
         self.dev.bulkWrite(2,val)
     
 
@@ -115,12 +116,13 @@ class Oled160128RGB_ParallelController(USBParallelController):
             for i in range(128):
                 color = []
                 for j in range(160):
-                    color += list(image_data[(i)*160+(j)])
+                    color += [0,255,0]#list(image_data[(i)*160+(j)])
                 self.parallel_extra_data(*color);
         else:
             self.parallel_extra_data(*color_data) #list(chain(*list(image_data))))
 
 def main():
+    logging.basicConfig(level=logging.DEBUG)
     img1 = Image.open('/home/diamondman/Pictures/scaled_cait.png') 
     rgb1 = img1.convert('RGB')
     dat1 = rgb1.getdata()
@@ -134,12 +136,14 @@ def main():
     oled = Oled160128RGB_ParallelController(vendor_id=0x4b4, prod_id=0x1004)
     oled.display_init()
 
-    for i in range(50):
-        oled.draw_full_image(color_data=color1)
-        #time.sleep(2)
+    #for i in range(50):
+    #oled.draw_full_image(color_data=color1)
+    oled.draw_full_image(image_data=dat1)
+    time.sleep(2)
         
-        logging.debug("NEXT")
-        oled.draw_full_image(color_data=color2)
+    logging.debug("NEXT")
+    #oled.draw_full_image(color_data=color2)
+    oled.draw_full_image(image_data=dat2)
 
     time.sleep(1)
     logging.debug("OFF")
