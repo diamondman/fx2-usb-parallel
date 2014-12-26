@@ -26,7 +26,8 @@ class USBParallelController(object):
                 raise TypeError("FAILED TO FIND USB DEVICE") #Can't think of better error now
 
     def __del__(self):
-        self.dev.close()
+        if self.dev:
+            self.dev.close()
 
     def parallel_set_address_mode(self, mode):
         if mode not in [self.MODE_AUTO, self.MODE_DATA, self.MODE_CMD]:
@@ -116,7 +117,7 @@ class Oled160128RGB_ParallelController(USBParallelController):
             for i in range(128):
                 color = []
                 for j in range(160):
-                    color += [0,255,0]#list(image_data[(i)*160+(j)])
+                    color += list(image_data[(i)*160+(j)])
                 self.parallel_extra_data(*color);
         else:
             self.parallel_extra_data(*color_data) #list(chain(*list(image_data))))
