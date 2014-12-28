@@ -47,9 +47,12 @@
 #define SET 0
 #define AND 1
 #define OR 2
+
+#define READ_ADDR_TEST 3
 volatile __bit dosuspend;
 volatile __bit got_sud;
 volatile __bit autodata_mode;
+volatile uint8_t address_mode;
 
 BOOL handle_parallelcommand(){
   switch (SETUPDAT[2]) {
@@ -79,8 +82,10 @@ BOOL handle_parallelcommand(){
 	  printf("AUTO\n");
 	  PORTCCFG = 0xFF;    // [7:0] as alt. func. GPIFADR[7:0]
 	  OEC = 0xFF;         // and as outputs
-	  IOC = 0;
+	  GPIFADRH = 0;
+	  GPIFADRL = 0;
 	  autodata_mode = TRUE;
+	  address_mode = ADDRESS_AUTO;
 	  return TRUE;
 	}
       case ADDRESS_ONLY_CMD:
@@ -90,6 +95,7 @@ BOOL handle_parallelcommand(){
 	  OEC = 0xFF;       // and as inputs
 	  IOC = 0;
 	  autodata_mode = FALSE;
+	  address_mode = ADDRESS_ONLY_CMD;
 	  return TRUE;
 	}
       case ADDRESS_ONLY_DATA:
@@ -99,6 +105,7 @@ BOOL handle_parallelcommand(){
 	  OEC = 0xFF;       // and as inputs
 	  IOC = 0xFF;
 	  autodata_mode = FALSE;
+	  address_mode = ADDRESS_ONLY_DATA;
 	  return TRUE;
 	}
       default:
@@ -131,6 +138,13 @@ BOOL handle_parallelcommand(){
       default:
 	return FALSE;
       }
+    }
+  case READ_ADDR_TEST:
+    {
+      EP0BUF[0] = IOC;
+      EP0BCH = 0;
+      EP0BCL = 1;
+      return TRUE;
     }
   default:
     return FALSE;
@@ -313,6 +327,7 @@ void main(){
   got_sud=FALSE;
   dosuspend = FALSE;
   autodata_mode = TRUE;
+  address_mode = ADDRESS_AUTO;
 
   init();
   printf("\n\n");
@@ -352,25 +367,38 @@ void main(){
       SYNCDELAY4;
       SET_TRANSFER_COUNT(EP2FIFOBCL,EP2FIFOBCH,0,0);
       SYNCDELAY4;
-      IOC = 0; //Make sure address starts at 0
+      /*switch(address_mode){
+      case ADDRESS_AUTO:
+	GPIFADRH = 0;
+	GPIFADRL = 0;
+	break;
+      case ADDRESS_ONLY_DATA:
+	IOC = 1;
+	break;
+      case ADDRESS_ONLY_CMD:
+	IOC = 0;
+	}*/
+      if(autodata_mode){
+	IOC = 0; //Make sure address starts at 0
+      }
       GPIFTRIG = 0;
       SYNCDELAY4;
-      printf("FIFO GOT DATA %d %d %d %d...", 
+      printf("FIFO GOT DATA %d %d %d %d...",
              GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       SYNCDELAY4;
       while(!(GPIFTRIG & 0x80)){
-	//printf("FIFO GOT DATA %d %d %d %d\n", 
+	//printf("FIFO GOT DATA %d %d %d %d\n",
 	//       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       }
       //SYNCDELAY4;
-      //printf("FIFO GOT DATA %d %d %d %d\n", 
+      //printf("FIFO GOT DATA %d %d %d %d\n",
       //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       //SYNCDELAY4;
       //printf("DONE\n");
       SYNCDELAY4;
     }
-    
-    
+
+
     /*if(!(EP2468STAT & 0x01) && !(EP2468STAT & 0x20)){
       WORD i;
       d4off();
