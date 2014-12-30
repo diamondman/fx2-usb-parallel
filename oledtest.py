@@ -29,6 +29,13 @@ class USBParallelController(object):
         if self.dev:
             self.dev.close()
 
+    def read_ioc(self):
+        return self.dev.controlRead(0xC0, 0xb5, 3, 0, 1)
+
+    @property
+    def ioc(self):
+        return bin(int(binascii.hexlify(self.dev.controlRead(0xC0, 0xb5, 3, 0, 1)).decode(),16))[2:].zfill(8)
+
     @property
     def address_mode(self):
         return self._mode
@@ -63,76 +70,84 @@ class USBParallelController(object):
         self.dev.bulkWrite(2, data)
 
 
-class Oled160128RGB_ParallelController(USBParallelController):
+class SEPS525DisplayDriver(object):
+    def __init__(self, controller):
+        self._ctrl = controller
+
+class Oled160128RGB_ParallelController(SEPS525DisplayDriver):
+    def __init__(self, controller):
+        self._ctrl = controller
+
     def fullreset(self):
         for i in [2,3,1]:
-            self.dev.controlWrite(0x40, 0xb5, 2, i, b'')
+            self._ctrl.dev.controlWrite(0x40, 0xb5, 2, i, b'')
             time.sleep(0.000005)
 
     def display_onoff(self, onoff):
-        self.command(0x06, 1 if onoff else 0)
+        self._ctrl.command(0x06, 1 if onoff else 0)
 
     def set_power(self):
-        self.command(0x10, 0x56)# Set Driving Current of Red
-        self.command(0x11, 0x4D)# Set Driving Current of Green
-        self.command(0x12, 0x46)# Set Driving Current of Blue
-        self.command(0x08, 0x04)# Set Pre ‐ Charge Time of Red
-        self.command(0x09, 0x05)# Set Pre ‐ Charge Time of Green
-        self.command(0x0A, 0x05)# Set Pre ‐ Charge Time of Blue
-        self.command(0x0B, 0x9D)# Set Pre ‐ Charge Current of Red
-        self.command(0x0C, 0x8C)# Set Pre ‐ Charge Current of Green
-        self.command(0x0D, 0x57)# Set Pre ‐ Charge Current of Blue
-        self.command(0x80, 0x01) # Set Reference Voltage Controlled by External Resister
+        self._ctrl.command(0x10, 0x56)# Set Driving Current of Red
+        self._ctrl.command(0x11, 0x4D)# Set Driving Current of Green
+        self._ctrl.command(0x12, 0x46)# Set Driving Current of Blue
+        self._ctrl.command(0x08, 0x04)# Set Pre ‐ Charge Time of Red
+        self._ctrl.command(0x09, 0x05)# Set Pre ‐ Charge Time of Green
+        self._ctrl.command(0x0A, 0x05)# Set Pre ‐ Charge Time of Blue
+        self._ctrl.command(0x0B, 0x9D)# Set Pre ‐ Charge Current of Red
+        self._ctrl.command(0x0C, 0x8C)# Set Pre ‐ Charge Current of Green
+        self._ctrl.command(0x0D, 0x57)# Set Pre ‐ Charge Current of Blue
+        self._ctrl.command(0x80, 0x01)# Set Reference Voltage Controlled by External Resister
 
     def display_init(self):
         self.fullreset()
-        self.command(0x04, 0x03, delay=2000) # ANALOG RESET and osc off
-        self.command(0x04, 0x00, delay=2000) # Restore normal operation
+        self._ctrl.command(0x04, 0x03, delay=2000) # ANALOG RESET and osc off
+        self._ctrl.command(0x04, 0x00, delay=2000) # Restore normal operation
 
         self.display_onoff(False) #?
-        self.command(0x2, 0x01) # Use internal clock w/ external resistor
-        self.command(0x03, 0x90) # Set Frame Rate as 120Hz [14]
-        self.command(0x28, 0x7F) # 1/128 Duty (0x0F~0x7F)
-        self.command(0x29, 0x00) # Set Mapping RAM Display Start Line (0x00~0x7F)
-        self.command(0x14, 0x01) # Set MCU Interface Mode DOCS SAY 0x31?!
-        self.command(0x16, 0x76) # 6 bit trible write mode
+        self._ctrl.command(0x2, 0x01)# Use internal clock w/ external resistor
+        self._ctrl.command(0x03, 0x90)# Set Frame Rate as 120Hz [14]
+        self._ctrl.command(0x28, 0x7F)# 1/128 Duty (0x0F~0x7F)
+        self._ctrl.command(0x29, 0x00)# Set Mapping RAM Display Start Line (0x00~0x7F)
+        self._ctrl.command(0x14, 0x01)# Set MCU Interface Mode DOCS SAY 0x31?!
+        self._ctrl.command(0x16, 0x76)# 6 bit trible write mode
 
         self.set_power();
 
-        self.command(0x13, 0x00)
+        self._ctrl.command(0x13, 0x00)
 
         #DOCS SAY CLEAR SCREEN but writing to ram breaks everything
 
         self.display_onoff(True) # Display On (0x00/0x01)
 
     def set_drawing_box(self, left, right, top, bottom):
-        self.command(0x17, left) #set column start address
-        self.command(0x18, right) #set column end address
-        self.command(0x19, top) #set row start address
-        self.command(0x1A, bottom) #set row end address        
+        self._ctrl.command(0x17, left) #set column start address
+        self._ctrl.command(0x18, right) #set column end address
+        self._ctrl.command(0x19, top) #set row start address
+        self._ctrl.command(0x1A, bottom) #set row end address
 
     def draw_full_image(self, image_data=None, color_data=None):
         """image_data = Imageinstance.getdata()
         color_data = bytesif the pixels in order."""
-        print("BEFORE", bin(int(binascii.hexlify(self.dev.controlRead(0xC0, 0xb5, 3, 0, 1)).decode(),16))[2:].zfill(8))
+        print("BEFORE")
         self.set_drawing_box(0, 159, 0, 127)
 
-        print("BEFORE", bin(int(binascii.hexlify(self.dev.controlRead(0xC0, 0xb5, 3, 0, 1)).decode(),16))[2:].zfill(8))
         if not color_data:
-            self.command(0x22) #write to RAM command
+            self._ctrl.command(0x22) #write to RAM command
             if not image_data:
                 raise TypeError("image_data or color_data have to be not null")
             for i in range(128):
                 color = []
                 for j in range(160):
                     color += list(image_data[(i)*160+(j)])
-                self.command_extra_data(*color);
+                self._ctrl.command_extra_data(*color);
 
         else:
             print("doing fast way", len(color_data))
-            self.command(0x22, color_data) #list(chain(*list(image_data))))
+            self._ctrl.command(0x22, color_data)
             print('done fast way')
-        print("AFTER",bin(int(binascii.hexlify(self.dev.controlRead(0xC0, 0xb5, 3, 0, 1)).decode(),16))[2:].zfill(8))
+        print("AFTER")
+
+
 
 def main():
     logging.basicConfig(level=logging.INFO)#DEBUG)
@@ -148,10 +163,11 @@ def main():
     dat2 = rgb2.getdata()
     color2= bytes(list(chain(*list(dat2))))
 
-    oled = Oled160128RGB_ParallelController(vendor_id=0x4b4, prod_id=0x1004)
+    controller = USBParallelController(vendor_id=0x4b4, prod_id=0x1004)
+    oled = Oled160128RGB_ParallelController(controller)
     oled.display_init()
 
-    for i in range(50):
+    for i in range(10):
         #logging.info("ZEROth")
         #oled.draw_full_image(image_data=dat0)
         #oled.draw_full_image(color_data=color0)

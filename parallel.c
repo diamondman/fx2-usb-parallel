@@ -34,10 +34,6 @@
 #define SYNCDELAY SYNCDELAY4;
 #define PARALLEL_COMMAND 0xB5
 
-#define SET_LIGHT 0
-#define LIGHT_OFF 0
-#define LIGHT_ON 1
-
 #define SET_ADDRESS_MODE 1
 #define ADDRESS_AUTO 2
 #define ADDRESS_ONLY_DATA 1
@@ -56,23 +52,6 @@ volatile uint8_t address_mode;
 
 BOOL handle_parallelcommand(){
   switch (SETUPDAT[2]) {
-  case SET_LIGHT:
-    {
-      switch (SETUPDAT[4]) {
-      case LIGHT_OFF:
-        {
-          d2off();
-          return TRUE;
-	}
-      case LIGHT_ON:
-	{
-	  d2on();
-	  return TRUE;
-	}
-      default:
-	return FALSE;
-      }
-    }
   case SET_ADDRESS_MODE:
     {
       printf("ADDRESS MODE: ");
@@ -240,8 +219,6 @@ void init(){
   SETIF48MHZ();
   sio0_init(57600);
   CKCON &= 0xF8; //Make memory access 2 cycles TRM page 272
-
-  d2off();
 
   ENABLE_RESUME();
   USE_USB_INTS();
