@@ -289,3 +289,4 @@ void GpifInit( void )
   FLOWSTBEDGE = FlowStates[ 6 ];
   FLOWSTBHPERIOD = FlowStates[ 7 ];
 }
+

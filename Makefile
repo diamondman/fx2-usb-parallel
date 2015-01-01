@@ -12,10 +12,10 @@ include $(FX2LIBDIR)lib/fx2.mk
 waveformat_and_all: format_waves all
 
 format_waves:
-	sed -i.bak s/\ xdata/\ __xdata/g wave_6800.c
-	sed -i.bak s/fx2\.h/fx2macros\.h/g wave_6800.c
-	sed -i.bak s/fx2sdly\.h/delay\.h/g wave_6800.c
-	sed -i.bak s/SYNCDELAY\ /SYNCDELAY4\ /g wave_6800.c
-	sed -i.bak s/SYNCDELAY\;/SYNCDELAY4\;/g wave_6800.c
 	dos2unix wave_6800.c
-	sed -i.bak s/\[\ \t\]*$$// wave_6800.c
+	sed -i.bak -e s/\ xdata/\ __xdata/g \
+	-e s/fx2\.h/fx2macros\.h/g \
+	-e s/fx2sdly\.h/delay\.h/g \
+	-e s/SYNCDELAY\ /SYNCDELAY4\ /g \
+	-e s/SYNCDELAY\;/SYNCDELAY4\;/g \
+	-e s/\[\ \\t\]*$$// wave_6800.c
