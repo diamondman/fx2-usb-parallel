@@ -13,19 +13,23 @@
 #include "wave_6800.h"
 
 #define GLEAR_GPIF() CLEAR_GPIF(); //Fix till pull request for fx2lib is taken
-#define SET_TRANSFER_COUNT(bak0, bak1, bak2, bak3)    \
-  SYNCDELAY4;                        \
-  GPIFTCB0 = bak0;                    \
-  SYNCDELAY4;                        \
-  GPIFTCB1 = bak1;                    \
-  SYNCDELAY4;                        \
-  GPIFTCB2 = bak2;                    \
-  SYNCDELAY4;                        \
-  GPIFTCB3 = bak3;                    \
+#define SET_TRANSFER_COUNT(bak0, bak1, bak2, bak3)\
+  SYNCDELAY4;					  \
+  GPIFTCB0 = bak0;				  \
+  SYNCDELAY4;					  \
+  GPIFTCB1 = bak1;				  \
+  SYNCDELAY4;					  \
+  GPIFTCB2 = bak2;				  \
+  SYNCDELAY4;					  \
+  GPIFTCB3 = bak3;				  \
   SYNCDELAY4;
 #define WAIT_EP2FIFO_NOT_EMPTY() \
-  SYNCDELAY4;                 \
+  SYNCDELAY4;                    \
   while (EP2FIFOFLGS & 2){}      \
+  SYNCDELAY4;
+#define WAIT_EP6FIFO_NOT_FULL() \
+  SYNCDELAY4;                   \
+  while (EP6FIFOFLGS & 1){}     \
   SYNCDELAY4;
 #define WAIT_GPIF_DONE()      \
   while(!(GPIFTRIG & 0x80)){} \
@@ -33,6 +37,8 @@
 
 #define SYNCDELAY SYNCDELAY4;
 #define PARALLEL_COMMAND 0xB5
+
+#define READ_PARALLEL 0
 
 #define SET_ADDRESS_MODE 1
 #define ADDRESS_AUTO 2
@@ -52,44 +58,58 @@ volatile uint8_t address_mode;
 
 BOOL handle_parallelcommand(){
   switch (SETUPDAT[2]) {
+  case READ_PARALLEL:
+    {
+      //WAIT_GPIF_DONE();
+      WAIT_EP6FIFO_NOT_FULL();
+      SET_TRANSFER_COUNT(1, 0, 0, 0);
+
+      SYNCDELAY;
+      GPIFTRIG = 6;
+      SYNCDELAY;
+      
+      //WAIT_GPIF_DONE();
+      return TRUE;
+
+    }
   case SET_ADDRESS_MODE:
     {
       printf("ADDRESS MODE: ");
       switch (SETUPDAT[4]) {
       case ADDRESS_AUTO:
-	{
-	  printf("AUTO\n");
-	  PORTCCFG = 0xFF;    // [7:0] as alt. func. GPIFADR[7:0]
-	  OEC = 0xFF;         // and as outputs
-	  GPIFADRH = 0;
-	  GPIFADRL = 0;
-	  autodata_mode = TRUE;
-	  address_mode = ADDRESS_AUTO;
-	  return TRUE;
-	}
+        {
+          printf("AUTO\n");
+          PORTCCFG = 0xFF;    // [7:0] as alt. func. GPIFADR[7:0]
+          OEC = 0xFF;         // and as outputs
+          GPIFADRH = 0;
+          GPIFADRL = 0;
+          autodata_mode = TRUE;
+          address_mode = ADDRESS_AUTO;
+          return TRUE;
+        }
       case ADDRESS_ONLY_CMD:
-	{
-	  printf("CMD ONLY\n");
-	  PORTCCFG = 0x00;  // [7:0] as port I/O
-	  OEC = 0xFF;       // and as inputs
-	  IOC = 0;
-	  autodata_mode = FALSE;
-	  address_mode = ADDRESS_ONLY_CMD;
-	  return TRUE;
-	}
+        {
+          printf("CMD ONLY\n");
+          PORTCCFG = 0x00;  // [7:0] as port I/O
+          OEC = 0xFF;       // and as inputs
+          IOC = 0;
+          autodata_mode = FALSE;
+          address_mode = ADDRESS_ONLY_CMD;
+          return TRUE;
+        }
       case ADDRESS_ONLY_DATA:
-	{
-	  printf("DATA ONLY\n");
-	  PORTCCFG = 0x00;  // [7:0] as port I/O
-	  OEC = 0xFF;       // and as inputs
-	  IOC = 0xFF;
-	  autodata_mode = FALSE;
-	  address_mode = ADDRESS_ONLY_DATA;
-	  return TRUE;
-	}
+        {
+          printf("DATA ONLY\n");
+          PORTCCFG = 0x00;  // [7:0] as port I/O
+          OEC = 0xFF;       // and as inputs
+          IOC = 0xFF;
+          autodata_mode = FALSE;
+          address_mode = ADDRESS_ONLY_DATA;
+          return TRUE;
+        }
       default:
-	printf("UNKNOWN\n");
-	return FALSE;
+        printf("UNKNOWN\n");
+        return FALSE;
       }
     }
   case WRITE_GPIO:
@@ -97,25 +117,25 @@ BOOL handle_parallelcommand(){
       uint8_t val = SETUPDAT[4];
       switch (SETUPDAT[5]) {
       case SET:
-	{
-	  IOA = val;
-	  printf("SET IOA = %d, %d", IOA, val);
-	  return TRUE;
-	}
+        {
+          IOA = val;
+          printf("SET IOA = %d, %d", IOA, val);
+          return TRUE;
+        }
       case AND:
-	{
-	  IOA &= val;
-	  printf("SET IOA &= %d, %d", IOA, val);
-	  return TRUE;
-	}
+        {
+          IOA &= val;
+          printf("SET IOA &= %d, %d", IOA, val);
+          return TRUE;
+        }
       case OR:
-	{
-	  IOA |= val;
-	  printf("SET IOA |= %d, %d", IOA, val);
-	  return TRUE;
-	}
+        {
+          IOA |= val;
+          printf("SET IOA |= %d, %d", IOA, val);
+          return TRUE;
+        }
       default:
-	return FALSE;
+        return FALSE;
       }
     }
   case READ_ADDR_TEST:
@@ -242,9 +262,9 @@ void init(){
   //OEE = 0xD8; //For T*OUT
 
   //BIT 6 0 = OUT, 1 = IN. This is same direction as USB. IN means to PC
-  EP2CFG &= 0xA2; //EP2 is READ FROM USB. 512byte OUT BULK set DOUBLE BUFF
+  EP2CFG = 0xA0; //EP2 is READ FROM USB. 512byte OUT BULK set QUAD BUFF
   SYNCDELAY;
-  EP6CFG = 0xE2;
+  EP6CFG = 0xE2; //EP2 is WRITE TO HOST. 512byte OUT BULK set DOUBLE BUFF
   SYNCDELAY;
 
 
@@ -269,7 +289,7 @@ void init(){
   SYNCDELAY;
 
 
-  EP2FIFOCFG = 0x10;//0x15; //AUTO OUT, WORDWIDE=0
+  EP2FIFOCFG = 0x10;//AUTO OUT, WORDWIDE=0
   EP6FIFOCFG = 0x08;//AUTO IN, WORDWIDE=0
   SYNCDELAY;
 
@@ -346,27 +366,28 @@ void main(){
       SYNCDELAY4;
       /*switch(address_mode){
       case ADDRESS_AUTO:
-	GPIFADRH = 0;
-	GPIFADRL = 0;
-	break;
+        GPIFADRH = 0;
+        GPIFADRL = 0;
+        break;
       case ADDRESS_ONLY_DATA:
-	IOC = 1;
-	break;
+        IOC = 1;
+        break;
       case ADDRESS_ONLY_CMD:
-	IOC = 0;
-	}*/
+        IOC = 0;
+        }*/
       if(autodata_mode){
-	IOC = 0; //Make sure address starts at 0
+        IOC = 0; //Make sure address starts at 0
       }
       GPIFTRIG = 0;
       SYNCDELAY4;
       //printf("FIFO GOT DATA %d %d %d %d...",
       //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
       SYNCDELAY4;
-      while(!(GPIFTRIG & 0x80)){
-	//printf("FIFO GOT DATA %d %d %d %d\n",
-	//       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
-      }
+      //while(!(GPIFTRIG & 0x80)){
+        //printf("FIFO GOT DATA %d %d %d %d\n",
+        //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
+	//}
+      WAIT_GPIF_DONE();
       //SYNCDELAY4;
       //printf("FIFO GOT DATA %d %d %d %d\n",
       //       GPIFTCB0, GPIFTCB1, GPIFTCB2, GPIFTCB3);
@@ -384,7 +405,7 @@ void main(){
       bytes = MAKEWORD(EP2BCH, EP2BCL);
 
       for (i=0; i<bytes; i++)
-	EP6FIFOBUF[i] = EP2FIFOBUF[i];
+        EP6FIFOBUF[i] = EP2FIFOBUF[i];
       EP6BCH = MSB(bytes);
       SYNCDELAY;
       EP6BCL = LSB(bytes);
