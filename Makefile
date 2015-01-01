@@ -17,3 +17,5 @@ format_waves:
 	sed -i.bak s/fx2sdly\.h/delay\.h/g wave_6800.c
 	sed -i.bak s/SYNCDELAY\ /SYNCDELAY4\ /g wave_6800.c
 	sed -i.bak s/SYNCDELAY\;/SYNCDELAY4\;/g wave_6800.c
+	dos2unix wave_6800.c
+	sed -i.bak s/\[\ \t\]*$$// wave_6800.c
