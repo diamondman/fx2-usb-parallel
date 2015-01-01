@@ -130,13 +130,13 @@
 // DataMode NO Data   NO Data   Activate  Activate  NO Data   NO Data   NO Data
 // NextData SameData  SameData  SameData  SameData  NextData  SameData  SameData
 // Int Trig No Int    No Int    No Int    No Int    No Int    No Int    No Int
-// IF/Wait  Wait 1    Wait 1    Wait 2    Wait 2    Wait 1    Wait 1    IF
-//   Term A                                                             FIFOFlag
-//   LFunc                                                              AND
-//   Term B                                                             FIFOFlag
-// Branch1                                                              ThenIdle
-// Branch0                                                              ElseIdle
-// Re-Exec                                                              No
+// IF/Wait  Wait 1    Wait 1    Wait 2    Wait 2    Wait 1    Wait 1    Wait 1
+//   Term A
+//   LFunc
+//   Term B
+// Branch1
+// Branch0
+// Re-Exec
 // Sngl/CRC Default   Default   Default   Default   Default   Default   Default
 // RW           0         0         0         0         0         0         0         0
 // E            0         0         0         1         1         0         0         0
@@ -174,10 +174,10 @@ const char __xdata WaveData[128] =
 /* Output*/ 0x00,     0x00,     0x00,     0x00,     0x00,     0x00,     0x00,     0x00,
 /* LFun  */ 0x00,     0x00,     0x00,     0x00,     0x00,     0x00,     0x00,     0x3F,
 // Wave 3
-/* LenBr */ 0x01,     0x01,     0x02,     0x02,     0x01,     0x01,     0x3F,     0x07,
-/* Opcode*/ 0x00,     0x00,     0x02,     0x02,     0x04,     0x00,     0x09,     0x00,
+/* LenBr */ 0x01,     0x01,     0x02,     0x02,     0x01,     0x01,     0x01,     0x07,
+/* Opcode*/ 0x00,     0x00,     0x02,     0x02,     0x04,     0x00,     0x08,     0x00,
 /* Output*/ 0x00,     0x00,     0x00,     0x02,     0x02,     0x00,     0x00,     0x00,
-/* LFun  */ 0x00,     0x00,     0x00,     0x00,     0x00,     0x00,     0x36,     0x3F,
+/* LFun  */ 0x00,     0x00,     0x00,     0x00,     0x00,     0x00,     0x00,     0x3F,
 };
 // END DO NOT EDIT
 
